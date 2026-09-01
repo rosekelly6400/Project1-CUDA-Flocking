@@ -55,14 +55,14 @@ void checkCUDAError(const char *msg, int line = -1) {
 #define rule2Distance 3.0f
 #define rule3Distance 5.0f
 
-#define rule1Scale 0.01f
+#define rule1Scale 0.09f
 #define rule2Scale 0.1f
 #define rule3Scale 0.1f
 
 #define maxSpeed 1.0f
 
 /*! Size of the starting area in simulation space. */
-#define scene_scale 100.0f
+#define scene_scale 20.0f
 
 /***********************************************
 * Kernel state (pointers are device pointers) *
@@ -246,22 +246,86 @@ void Boids::copyBoidsToVBO(float *vbodptr_positions, float *vbodptr_velocities) 
 * Compute the new velocity on the body with index `iSelf` due to the `N` boids
 * in the `pos` and `vel` arrays.
 */
-__device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *pos, const glm::vec3 *vel) {
-  // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
-  // Rule 2: boids try to stay a distance d away from each other
-  // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+__device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3* pos, const glm::vec3* vel) {
+    glm::vec3 total_velocity(0.0f, 0.0f, 0.0f);
+    // Rule 1: Cohesion
+    glm::vec3 perceived_center(0.0f, 0.0f, 0.0f);
+    float numBoidsInRangeCohesion = 0.0f;
+    // Rule 2: Separation
+    glm::vec3 separation(0.0f, 0.0f, 0.0f);
+    // Rule 3: Alignment
+    glm::vec3 alignment(0.0f, 0.0f, 0.0f);
+    float numBoidsInRangeAlignment = 0.0f;
+
+    for (int i = 0; i < N; i++)
+    {
+        if (i == iSelf) continue;
+
+        float distance = glm::distance(pos[i], pos[iSelf]);
+        // Rule 1: Cohesion
+        if (distance < rule1Distance)
+        {
+            perceived_center += pos[i];
+            numBoidsInRangeCohesion++;
+        }
+        // Rule 2: Separation
+        if (distance < rule2Distance)
+        {
+            separation -= (pos[i] - pos[iSelf]);
+        }
+        // Rule 3: Alignment
+        if (distance < rule3Distance)
+        {
+            alignment += vel[i];
+            numBoidsInRangeAlignment++;
+        }
+    }
+    // Rule 1: Cohesion
+    if (numBoidsInRangeCohesion > 0)
+    {
+        perceived_center /= numBoidsInRangeCohesion;
+        total_velocity += (perceived_center - pos[iSelf]) * rule1Scale;
+    }
+    // Rule 2: Separation
+    //total_velocity += (separation * rule2Scale);
+    // Rule 3: Alignment
+    if (numBoidsInRangeAlignment > 0)
+    {
+        alignment /= numBoidsInRangeAlignment;
+        total_velocity += alignment * rule3Scale;
+    }
+    return total_velocity;
+    //return glm::vec3(0.0f, 0.0f, -1.0f);
 }
 
 /**
 * TODO-1.2 implement basic flocking
-* For each of the `N` bodies, update its position based on its current velocity.
 */
 __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   glm::vec3 *vel1, glm::vec3 *vel2) {
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    if (index >= N) {
+        return;
+    }
   // Compute a new velocity based on pos and vel1
+  glm::vec3 speed = computeVelocityChange(N, index, pos, vel1);
   // Clamp the speed
-  // Record the new velocity into vel2. Question: why NOT vel1?
+  if (glm::length(speed) > maxSpeed)
+  {
+      speed = glm::normalize(speed);
+  }
+    // Record the new velocity into vel2. Question: why NOT vel1?
+    // record into vel2 so new velocity which is calculated based on current pos and vel1 of all other 
+    // boids can be calculated in parallel without worrying about overwriting current velocity vel1
+    vel2[index] = speed;
+}
+
+__global__ void kernPingPong(int N, glm::vec3* vel1, glm::vec3* vel2) {
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    if (index >= N) {
+        return;
+    }
+    vel1[index] = vel2[index];
 }
 
 /**
@@ -365,7 +429,15 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 */
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
+    //kernUpdatePos(int N, float dt, glm::vec3 * pos, glm::vec3 * vel)
+    dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+    kernUpdateVelocityBruteForce << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_pos, dev_vel1, dev_vel2);
+    kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel2);
   // TODO-1.2 ping-pong the velocity buffers
+    glm::vec3* temp = dev_vel1;
+    dev_vel1 = dev_vel2;
+    dev_vel2 = temp;
+    //kernPingPong << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_vel1, dev_vel2);
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
