@@ -5,9 +5,12 @@ Project 1 - Flocking**
   * [LinkedIn](www.linkedin.com/in/rose-kelly-b480b01a8)
 * Tested on: Windows 11, i7-13700F @ 2.10 GHz 16GB, RTX 4060-Ti 8GB (Personal Computer)
 
-### Performance Analysis
+![](images/boids.gif)
+<img src="images/boidsStill.png" width="300" >
 
-#### (Visualization On)
+### Performance Analysis
+#### Performance as Number of Boids Changes (Visualization On) [higher FPS is better]
+![](images/fpsVizOn.png)
 | # of Boids    | Naive FPS   | Uniform Grid FPS   | Coherent Grid FPS   |
 | ------------- | ------------- | ------------- | ------------- |
 | 32000  | 95.1 |	264.8 |	298.2  |
@@ -15,7 +18,8 @@ Project 1 - Flocking**
 | 128000  | 8.9 |	120 |	272.5 |
 | 256000  |2.3	| 56.4 |	224.4 |
 
-#### (Visualization Off)
+#### Performance as Number of Boids Changes (Visualization Off) [higher FPS is better]
+![](images/fpsVizOff.png)
 | # of Boids    | Naive FPS   | Uniform Grid FPS   | Coherent Grid FPS   |
 | ------------- | ------------- | ------------- | ------------- |
 | 32000  | 101.9 |	312.2	| 363  |
@@ -23,7 +27,8 @@ Project 1 - Flocking**
 | 128000  | 9	| 132	| 333.7|
 | 256000  |2.3	| 59.6 |	290.9 |
 
-#### Performance as Block Size Changes
+#### Performance as Block Size Changes [higher FPS is better]
+![](images/blocksizeFPS.png)
 | Block Size| 	Naive |	Uniform Grid |	Coherent Grid |
 | ------------- | ------------- | ------------- | ------------- |
 |32|	98.3	|300.2	|365.1|
@@ -50,5 +55,5 @@ Yes, my data shows significant FPS improvements between my uniform grid implemen
 I will note that the performance improvement was larger than I had anticipated it would be. I did not realize reducing the amount of reads for individual elements scattered across memory would so significantly increase FPS.
 
 ####  Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
-I did not see a significant difference in FPS. There are more cells to check but this should actually reduce the number of boids that are checked but not actually within neighborhood distance since the cells are a quarter of the size than before and thus each cell is more likely to contain valid boids if its within max distance than the larger cells.
+I saw a performance improvement from the 27 neighboring cells (with width of max distance) approach.There are more cells to check but this should actually reduce the number of boids that are checked but not actually within neighborhood distance since the cells are a quarter of the size than they were before and thus each cell that's within max distance from the current boid is less likely to contain invalid boids (ie not within max distance). So this method is a performance improvement for uniform grid because we spend less time fetching the data for boids that we won't actually use in our calculations.
 

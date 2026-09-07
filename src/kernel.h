@@ -12,4 +12,5 @@ namespace Boids {
     void unitTestKernComputeIndices();
     void unitTestThrustSortIndices();
     void unitTestIdentifyCellStartEnd();
+    void unitTestCoherent();
 }
