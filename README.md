@@ -108,14 +108,14 @@ NOTE: you may notice FPS here is  quite a bit higher than my previous data. I ha
 |128000|	625.238|	388.474|
 |256000|	352.299|	175.379|
 
-As you can see the shared memory scattered grid approach generally has higher FPS, with a smaller gap when there are fewer boids. The cause of this could be there are less cache misses when there are fewer boids in the original scattered grid approach so the benefit of shared memory is less noticeable, and the overhead is comparitively more noticeable.
+As you can see the shared memory scattered grid approach had higher FPS for larger number of boids and similar performance at lower numbers of boids. The cause of this could be there are less cache misses when there are fewer boids in the original scattered grid approach so the benefit of shared memory is less noticeable, and the overhead is comparitively more noticeable.
 
 #### Performance as Block Size Changes [higher FPS is better]
 ![](images/FPSvsBlockSize.png)
 
 [block size for measurements was 512]
 
-| # of Boids   | Shared Memory Scattered Grid FPS   | Scattered Grid FPS   |
+| Block Size   | Shared Memory Scattered Grid FPS   | Scattered Grid FPS   |
 | ------------- | ------------- | ------------- |
 |32|	943.922|	814.905|
 |64|	996.03|	714.868|
@@ -131,5 +131,13 @@ There wasn't a significant change as block size changed, but shared memory appro
 ![](images/cohesiveFPSvsNumBoids.png)
 
 [block size for measurements was 128]
+
+| # of Boids   | Shared Memory Scattered Grid FPS   | Scattered Grid FPS   |
+| ------------- | ------------- | ------------- |
+| 5000|	1506.28	|1487.75
+|32000|	1183.35	|1175.92
+|64000|	1062	|1061.58
+|128000|	678.779	|769.5
+|256000|	457.488	|521.399
 
 This approach did not significantly impact the performance of the cohesive uniform grid approach since it relies on the same optimization to improve performance: making less global memory reads. The cohesive approach is an optimization because it uses the cache to store boid data from the same cell and adjacent cells to reduce the number of global reads. Similarly, the shared memory approach allows the neighbor search to avoid global reads for other boids in that block (which are likely to be neighbors since they are in either the same cell or adjacent cells). The shared memory approach also comes with overhead of storing data in shared memory and additional checks for whether shared memory or the cache/global memory should be checked for boid information, so the shared memory approach could be slower because of this baggage.
